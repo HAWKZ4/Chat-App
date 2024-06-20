@@ -1,31 +1,100 @@
 const socket = io("ws://localhost:3500");
 
+const nameInput = document.querySelector("#name");
+const msgInput = document.querySelector("#message");
+const chatRoom = document.querySelector("#room");
+const userList = document.querySelector(".user-list");
+const roomList = document.querySelector(".room-list");
+const chatDisplay = document.querySelector(".chat-display");
 const activity = document.querySelector(".activity");
-const msgInput = document.querySelector("input");
+
+// R: socket.emit => FRONT BACK FRONT
+//    io.emit BACK => FRONT
 
 function sendMessage(e) {
   e.preventDefault();
-  if (msgInput.value) {
-    socket.emit("message", msgInput.value);
+  if (nameInput.value && chatRoom.value && msgInput.value) {
+    socket.emit("message", {
+      name: nameInput.value,
+      text: msgInput.value,
+    });
     msgInput.value = "";
   }
   msgInput.focus();
 }
 
-document.querySelector("form").addEventListener("submit", sendMessage);
+function enterRoom(e) {
+  e.preventDefault();
+  if (nameInput.value && chatRoom.value) {
+    socket.emit("enterRoom", {
+      name: nameInput.value,
+      room: chatRoom.value,
+    });
+  }
+}
+
+function showUsers(users) {
+  userList.textContent = "";
+
+  if (users) {
+    userList.innerHTML = `<em>Users in ${chatRoom.value}: </em>`;
+
+    users.forEach((user, i) => {
+      userList.textContent += `${user.name}`;
+
+      if (users.length > 1 && i !== users.length - 1) {
+        userList.textContent += ",";
+      }
+    });
+  }
+}
+
+function showRooms(rooms) {
+  roomList.textContent = "";
+  console.log("this is rooms on client side", rooms);
+  if (rooms) {
+    roomList.innerHTML = "<em>Active Rooms : </em>";
+
+    rooms.forEach((room, i) => {
+      roomList.textContent += room;
+
+      if (rooms.length > 1 && i !== rooms.length + 1) {
+        roomList.textContent += ",";
+      }
+    });
+  }
+}
+
+document.querySelector(".form-msg").addEventListener("submit", sendMessage);
+
+document.querySelector(".form-join").addEventListener("submit", enterRoom);
+
+msgInput.addEventListener("keypress", () => {
+  socket.emit("activity", nameInput.value);
+});
 
 // Listen for messages
 socket.on("message", (data) => {
   activity.textContent = "";
+  const { name, text, time } = data;
   const li = document.createElement("li");
-  li.textContent = data;
-  document.querySelector("ul").appendChild(li);
-});
+  li.className = "post";
+  if (name === nameInput.value) li.className = "post post--left";
+  if (name !== nameInput.value && name !== "Admin") li.className = "post post--right";
 
-// 1
-msgInput.addEventListener("keypress", () => {
-  // Send activity to the server on keypress event
-  socket.emit("activity", socket.id.substring(0, 5));
+  if (name !== "Admin") {
+    li.innerHTML = `<div class="post__header ${
+      name === nameInput.value ? "post__header--user" : "post__header--reply"
+    } ">
+    <span class="post__header--name">${name}</span>
+    <span class="post__header--time">${time}</span>
+    </div>
+    <div class="post__text">${text}</div>`;
+  } else {
+    li.innerHTML = `<div class="post__text">${text}</div>`;
+  }
+  document.querySelector(".chat-display").appendChild(li);
+  chatDisplay.scrollTop = chatDisplay.scrollHeight;
 });
 
 let activityTimer;
@@ -41,4 +110,13 @@ socket.on("activity", (name) => {
   activityTimer = setTimeout(() => {
     activity.textContent = "";
   }, 3000);
+});
+
+// Destructure the object from the back end respond
+socket.on("userList", ({ users }) => {
+  showUsers(users);
+});
+
+socket.on("roomList", ({ rooms }) => {
+  showRooms(rooms);
 });
