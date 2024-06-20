@@ -51,7 +51,6 @@ function showUsers(users) {
 
 function showRooms(rooms) {
   roomList.textContent = "";
-  console.log("this is rooms on client side", rooms);
   if (rooms) {
     roomList.innerHTML = "<em>Active Rooms : </em>";
 
